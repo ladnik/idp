@@ -1,14 +1,14 @@
 #pragma once
 
-#include "autopas/tuning/Configuration.h"
-#include "autopas/tuning/tuningStrategy/LiveInfo.h"
-
 #include <limits>
 #include <optional>
 #include <set>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#include "autopas/tuning/Configuration.h"
+#include "autopas/tuning/tuningStrategy/LiveInfo.h"
 
 namespace autopas {
 

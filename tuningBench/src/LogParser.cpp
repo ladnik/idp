@@ -1,69 +1,63 @@
 #include "LogParser.h"
 
-#include "autopas/tuning/tuningStrategy/TuningLogEntry.h"
-
 #include <fstream>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <utility>
 
+#include "autopas/tuning/tuningStrategy/TuningLogEntry.h"
+
 namespace autopas {
 
-ScenarioData parseLogFile(const std::string &filename)
-{
-    std::ifstream logfileStream(filename);
+ScenarioData parseLogFile(const std::string &filename) {
+  std::ifstream logfileStream(filename);
 
-    if (!logfileStream)
-        throw std::runtime_error("Could not open logfile: " + filename);
+  if (!logfileStream) throw std::runtime_error("Could not open logfile: " + filename);
 
-    bool evidenceAdded = false;
-    size_t currPhaseIndex = 0;
-    TuningPhaseTable currTuningPhase{.phaseIndex = currPhaseIndex};
-    ScenarioData scenarioData{.sourceFile = filename};
-    std::optional<LiveInfo> pendingLiveInfo{};
+  bool evidenceAdded = false;
+  size_t currPhaseIndex = 0;
+  TuningPhaseTable currTuningPhase{.phaseIndex = currPhaseIndex};
+  ScenarioData scenarioData{.sourceFile = filename};
+  std::optional<LiveInfo> pendingLiveInfo{};
+  std::set<Configuration> searchSpace;
 
-    std::string line;
-    while (std::getline(logfileStream, line))
-    {
-        std::stringstream stream{line};
-        std::string type;
-        std::getline(stream, type, ' ');
+  std::string line;
+  while (std::getline(logfileStream, line)) {
+    std::stringstream stream{line};
+    std::string type;
+    std::getline(stream, type, ' ');
 
-        if (type == "evidence")
-        {
-            const auto [reduced, iteration, config] = tuningLogEntry::readEvidence(stream);
+    if (type == "evidence") {
+      const auto [reduced, iteration, config] = tuningLogEntry::readEvidence(stream);
 
-            currTuningPhase.measurements.emplace(config, SampleSet{.reduced = reduced, .iteration = iteration});
+      currTuningPhase.measurements.emplace(config, SampleSet{.reduced = reduced, .iteration = iteration});
+      searchSpace.emplace(config);
 
-            evidenceAdded = true;
-        }
-        else if (type == "liveInfo")
-        {
-            pendingLiveInfo = tuningLogEntry::readLiveInfo(stream);
-        }
-        else if (type == "reset")
-        {
-            if (evidenceAdded)
-            {
-                currTuningPhase.finalize();
-                scenarioData.phases.push_back(std::move(currTuningPhase));
-                ++currPhaseIndex;
-                evidenceAdded = false;
-            }
-
-            currTuningPhase = TuningPhaseTable{.phaseIndex = currPhaseIndex, .liveInfo = pendingLiveInfo};
-            pendingLiveInfo.reset();
-        }
-    }
-
-    if (evidenceAdded)
-    {
+      evidenceAdded = true;
+    } else if (type == "liveInfo") {
+      pendingLiveInfo = tuningLogEntry::readLiveInfo(stream);
+    } else if (type == "reset") {
+      if (evidenceAdded) {
         currTuningPhase.finalize();
         scenarioData.phases.push_back(std::move(currTuningPhase));
-    }
+        ++currPhaseIndex;
+        evidenceAdded = false;
+      }
 
-    return scenarioData;
+      currTuningPhase = TuningPhaseTable{.phaseIndex = currPhaseIndex, .liveInfo = pendingLiveInfo};
+      pendingLiveInfo.reset();
+    }
+  }
+
+  if (evidenceAdded) {
+    currTuningPhase.finalize();
+    scenarioData.phases.push_back(std::move(currTuningPhase));
+  }
+
+  scenarioData.searchSpace = searchSpace;
+  return scenarioData;
 }
 
 }  // namespace autopas

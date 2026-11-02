@@ -1,8 +1,8 @@
 #pragma once
 
-#include "TuningPhaseTable.h"
-
 #include <string>
+
+#include "TuningPhaseTable.h"
 
 namespace autopas {
 
