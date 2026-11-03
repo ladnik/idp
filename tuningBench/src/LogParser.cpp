@@ -21,7 +21,6 @@ ScenarioData parseLogFile(const std::string &filename) {
   TuningPhaseTable currTuningPhase{.phaseIndex = currPhaseIndex};
   ScenarioData scenarioData{.sourceFile = filename};
   std::optional<LiveInfo> pendingLiveInfo{};
-  std::set<Configuration> searchSpace;
 
   std::string line;
   while (std::getline(logfileStream, line)) {
@@ -33,7 +32,7 @@ ScenarioData parseLogFile(const std::string &filename) {
       const auto [reduced, iteration, config] = tuningLogEntry::readEvidence(stream);
 
       currTuningPhase.measurements.emplace(config, SampleSet{.reduced = reduced, .iteration = iteration});
-      searchSpace.emplace(config);
+      scenarioData.searchSpace.emplace(config);
 
       evidenceAdded = true;
     } else if (type == "liveInfo") {
@@ -56,7 +55,6 @@ ScenarioData parseLogFile(const std::string &filename) {
     scenarioData.phases.push_back(std::move(currTuningPhase));
   }
 
-  scenarioData.searchSpace = searchSpace;
   return scenarioData;
 }
 
