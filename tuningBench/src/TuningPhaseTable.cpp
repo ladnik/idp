@@ -31,4 +31,12 @@ std::optional<long> TuningPhaseTable::valueOf(const Configuration &config) const
   return it->second.reduced;
 }
 
+const SampleSet *TuningPhaseTable::samplesOf(const Configuration &config) const {
+  const auto it = measurements.find(config);
+  if (it == measurements.end()) {
+    return nullptr;
+  }
+  return &it->second;
+}
+
 }  // namespace autopas

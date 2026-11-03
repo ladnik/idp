@@ -37,8 +37,11 @@ struct TuningPhaseTable {
   /// Computes bestConfig, bestValue and sortedValues from measurements.
   void finalize();
 
-  /// Reduced value of a configuration, or std::nullopt if it was not measured in this phase
+  /// Reduced value of a configuration or std::nullopt if it was not measured in this phase
   [[nodiscard]] std::optional<long> valueOf(const Configuration &config) const;
+
+  /// Samples of a configuration or nullptr if it was not measured in this phase
+  [[nodiscard]] const SampleSet *samplesOf(const Configuration &config) const;
 };
 
 /*
@@ -68,11 +71,11 @@ struct PhaseResult {
   size_t evaluations;
   size_t tuningIterations;
   size_t searchSpaceSize;
-  Configuration chosen;
+  Configuration chosenConfiguration;
   long chosenValue;
   long optimalValue;
   long tuningCost;
-  long productionCost;
+  long simulationCost;
   long strategyOverheadNs;
   std::vector<long> bestSoFarCurve;
 };
