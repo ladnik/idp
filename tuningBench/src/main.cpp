@@ -37,8 +37,9 @@ void report(const autopas::ScenarioData &scenario, const std::vector<autopas::Ph
 
   long totalCost = 0;
   for (const auto &result : results) {
-    // relative slowdown of the chosen config vs true optimum config
-    double regret = result.optimalValue > 0 ? static_cast<double>(result.chosenValue) / result.optimalValue - 1.0 : 0.0;
+    // fraction of optimum, 1 means best configuration was selected
+    double selectionRatio =
+        result.chosenValue > 0 ? static_cast<double>(result.optimalValue) / result.chosenValue : 0.0;
 
     // time spent tuning + time spent computing with selected config
     totalCost += result.tuningCost + result.simulationCost;
@@ -46,7 +47,7 @@ void report(const autopas::ScenarioData &scenario, const std::vector<autopas::Ph
     std::cout << "  phase " << result.phaseIndex << ": " << result.evaluations << "/" << result.searchSpaceSize
               << " configs, " << result.tuningIterations << " iterations"
               << ", chosen=" << result.chosenValue << " ns, optimum=" << result.optimalValue << " ns"
-              << ", regret=" << std::fixed << std::setprecision(2) << regret * 100.0 << "%"
+              << ", selectionRatio=" << std::fixed << std::setprecision(4) << selectionRatio
               << ", cost=" << result.tuningCost << "+" << result.simulationCost << '\n';
   }
   std::cout << "  total cost: " << totalCost << " ns\n";

@@ -76,7 +76,7 @@ struct PhaseResult {
   long optimalValue;
   long tuningCost;
   long simulationCost;
-  long strategyOverheadNs;
+  long tuningOverheadNanoSeconds;
   std::vector<long> bestSoFarCurve;
 };
 

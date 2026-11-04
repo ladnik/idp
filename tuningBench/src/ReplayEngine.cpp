@@ -31,10 +31,16 @@ PhaseResult replayPhase(TuningStrategyInterface &strategy, const TuningPhaseTabl
 
   size_t iteration = 0;
   long bestValueSoFar = std::numeric_limits<long>::max();
+  auto before = std::chrono::steady_clock::now();
   strategy.reset(iteration, phase.phaseIndex, configQueue, evidenceCollection);
+  phaseResult.tuningOverheadNanoSeconds =
+      std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - before).count();
 
   while (!configQueue.empty()) {
+    before = std::chrono::steady_clock::now();
     strategy.optimizeSuggestions(configQueue, evidenceCollection);
+    phaseResult.tuningOverheadNanoSeconds +=
+        std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - before).count();
 
     if (configQueue.empty()) break;  // strategy ended phase
 
@@ -54,13 +60,17 @@ PhaseResult replayPhase(TuningStrategyInterface &strategy, const TuningPhaseTabl
                         .rebuildValue = 0,
                         .traversalValue = value};
       evidenceCollection.addEvidence(configToTest, evidence);
+
+      before = std::chrono::steady_clock::now();
       strategy.addEvidence(configToTest, evidence);
+      phaseResult.tuningOverheadNanoSeconds +=
+          std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - before).count();
 
       size_t tuningIterations = (stoppedEarly ? 1 : options.tuningSamples);
       bestValueSoFar = std::min(bestValueSoFar, value);
       iteration += tuningIterations;
 
-      phaseResult.evaluations += 1;
+      phaseResult.evaluations += 1;  // counts number of tested configs
       phaseResult.tuningIterations += tuningIterations;
       phaseResult.tuningCost += value * static_cast<long>(tuningIterations);
       phaseResult.bestSoFarCurve.push_back(bestValueSoFar);
