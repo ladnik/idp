@@ -58,4 +58,74 @@ ScenarioData parseLogFile(const std::string &filename) {
   return scenarioData;
 }
 
+// https://stackoverflow.com/a/46931770
+std::vector<std::string> split(const std::string &s, char delim) {
+  std::vector<std::string> result;
+  std::stringstream ss(s);
+  std::string item;
+
+  while (getline(ss, item, delim)) {
+    result.push_back(item);
+  }
+
+  return result;
+}
+
+void addRawSamples(ScenarioData &scenario, const std::string &filename) {
+  // CSV columns:
+  // Date,Iteration,Interaction Type,Container,CellSizeFactor,Traversal,Load Estimator,Data Layout,
+  // Newton 3,VectorizationPattern,rebuildSample 0 to n,traverseInteractionSample 0 to n,
+  // Reduced,Smoothed,Mean Rebuild Frequency
+
+  std::ifstream tuningDataStream(filename);
+
+  if (!tuningDataStream) throw std::runtime_error("Could not open tuning data file: " + filename);
+
+  std::map<std::string, Configuration> configStringMap;
+  for (const auto &config : scenario.searchSpace) {
+    configStringMap.emplace(config.getCSVLine(), config);
+  }
+
+  std::string line;
+  std::getline(tuningDataStream, line);
+
+  auto header = split(line, ',');
+  size_t firstSampleCol = std::distance(header.begin(), std::ranges::find(header, "traverseInteractionSample 0"));
+
+  if (firstSampleCol >= header.size()) throw std::runtime_error("Invalid tuning data file.");
+
+  std::string searchString = "traverseInteractionSample ";
+  size_t pos = line.rfind(searchString);
+  if (pos >= line.size()) throw std::runtime_error("Invalid tuning data file.");
+
+  auto numSamplesSubstr = line.substr(pos + searchString.size(), line.find(",", pos) - pos);
+  size_t numSamples = std::stoul(numSamplesSubstr) + 1;
+
+  while (std::getline(tuningDataStream, line)) {
+    auto row = split(line, ',');
+
+    size_t iteration = std::stoul(row.at(1));
+
+    std::string configString = "";
+    for (size_t i = 2; i < 10; i++) {
+      configString.append(row.at(i) + ",");
+    }
+    configString.pop_back();
+    Configuration config = configStringMap.at(configString);
+
+    for (auto &phase : scenario.phases) {
+      auto it = phase.measurements.find(config);
+      if (it != phase.measurements.end() and it->second.iteration == iteration) {
+        auto &samples = it->second.rawSamples;
+        for (size_t i = 0; i < numSamples; i++) {
+          long sample = std::stol(row.at(firstSampleCol + i));
+          if (sample < 0) continue;
+          samples.push_back(sample);
+        }
+        break;
+      }
+    }
+  }
+}
+
 }  // namespace autopas

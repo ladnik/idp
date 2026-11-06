@@ -58,6 +58,7 @@ enum class NoiseMode { Reduced, Resampled };
 struct ReplayOptions {
   size_t tuningInterval{100};
   size_t tuningSamples{3};
+  size_t dropFirstSamples{0};  // number of leading samples to drop on resampling (0 possibly includes warmup)
   double earlyStoppingFactor{std::numeric_limits<double>::infinity()};
   NoiseMode noiseMode{NoiseMode::Reduced};
   bool persistAcrossPhases{false};
@@ -72,7 +73,8 @@ struct PhaseResult {
   size_t tuningIterations;
   size_t searchSpaceSize;
   Configuration chosenConfiguration;
-  long chosenValue;
+  long chosenValueObserved;  // value observed by strategy (influenced by resampling noise)
+  long chosenValueRecorded;  // value recorded for chosen config (reduced value logged)
   long optimalValue;
   long tuningCost;
   long simulationCost;

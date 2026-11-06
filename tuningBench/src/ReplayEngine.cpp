@@ -8,8 +8,24 @@ namespace autopas {
 
 namespace {
 long sampleValue(const SampleSet &samples, const ReplayOptions &options, std::mt19937 &rng) {
-  // TODO: noise model
-  return samples.reduced;
+  // fallback if no raw samples available/reduced mode selected
+  if (options.noiseMode == NoiseMode::Reduced or samples.rawSamples.empty()) {
+    return samples.reduced;
+  }
+
+  size_t firstSampleIndex = options.dropFirstSamples < samples.rawSamples.size() ? options.dropFirstSamples : 0;
+
+  std::uniform_int_distribution<size_t> distrPick(firstSampleIndex, samples.rawSamples.size() - 1);
+  std::vector<long> drawnSamples;
+  drawnSamples.reserve(options.tuningSamples);
+
+  // draw from real recorded samples
+  for (size_t i = 0; i < options.tuningSamples; ++i) {
+    drawnSamples.push_back(samples.rawSamples[distrPick(rng)]);
+  }
+
+  // AutoPas default is minimum
+  return *std::min_element(drawnSamples.begin(), drawnSamples.end());
 }
 }  // namespace
 
@@ -85,7 +101,8 @@ PhaseResult replayPhase(TuningStrategyInterface &strategy, const TuningPhaseTabl
   const auto [chosenConfiguration, chosenEvidence] = evidenceCollection.getLatestOptimalConfiguration();
 
   phaseResult.chosenConfiguration = chosenConfiguration;
-  phaseResult.chosenValue = chosenEvidence.effectiveValue;
+  phaseResult.chosenValueObserved = chosenEvidence.effectiveValue;
+  phaseResult.chosenValueRecorded = phase.valueOf(chosenConfiguration).value();
   phaseResult.optimalValue = phase.bestValue;
 
   return phaseResult;
@@ -110,7 +127,7 @@ std::vector<PhaseResult> replayScenario(const StrategyFactory &makeStrategy, con
     long iterationsRemaining =
         options.tuningInterval > result.tuningIterations ? options.tuningInterval - result.tuningIterations : 0;
 
-    result.simulationCost = iterationsRemaining * phase.valueOf(result.chosenConfiguration).value();
+    result.simulationCost = iterationsRemaining * result.chosenValueRecorded;
     results.push_back(result);
   }
 

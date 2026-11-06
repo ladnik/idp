@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ostream>
 #include <string>
 
 #include "TuningPhaseTable.h"
@@ -17,9 +18,11 @@ struct PhaseMetrics {
   size_t tuningIterations;
   size_t searchSpaceSize;  // number of configs in search space
 
-  long chosenValue;
+  long chosenValueObserved;
+  long chosenValueRecorded;
   long optimalValue;
-  double selectionRatio;  // optimalValue / chosenValue, 1 means best configuration was selected
+  double selectionRatio;   // optimalValue / chosenValueRecorded, 1 means best configuration was selected
+  double observationBias;  // chosenValueObserved / chosenValueRecorded, 1 without noise, < 1 if lucky draw
   size_t rankOfChosen;
 
   // how many evaluations are needed to reach within x% of optimum, -1 if never reached
@@ -41,5 +44,12 @@ long dynamicOracleCost(const ScenarioData &scenario, const ReplayOptions &option
 
 // single configuration with the lowest total cost across all phases with zero tuning cost (static strategy)
 std::pair<Configuration, long> staticOracleCost(const ScenarioData &scenario, const ReplayOptions &options);
+
+// metadata of run as comment in csv output
+void writeCsvMetadata(std::ostream &out);
+
+void writeCsvHeader(std::ostream &out);
+
+void writeCsvRow(std::ostream &out, const PhaseMetrics &metrics);
 
 }  // namespace autopas
