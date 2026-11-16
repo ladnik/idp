@@ -90,9 +90,13 @@ void addRawSamples(ScenarioData &scenario, const std::string &filename) {
   std::getline(tuningDataStream, line);
 
   auto header = split(line, ',');
-  size_t firstSampleCol = std::distance(header.begin(), std::ranges::find(header, "traverseInteractionSample 0"));
+  size_t firstIterationSampleCol =
+      std::distance(header.begin(), std::ranges::find(header, "traverseInteractionSample 0"));
+  size_t firstRebuildSampleCol = std::distance(header.begin(), std::ranges::find(header, "rebuildSample 0"));
+  size_t rebuildFreqCol = std::distance(header.begin(), std::ranges::find(header, "Mean Rebuild Frequency"));
 
-  if (firstSampleCol >= header.size()) throw std::runtime_error("Invalid tuning data file.");
+  if (firstIterationSampleCol >= header.size() || firstRebuildSampleCol >= header.size())
+    throw std::runtime_error("Invalid tuning data file.");
 
   std::string searchString = "traverseInteractionSample ";
   size_t pos = line.rfind(searchString);
@@ -117,11 +121,14 @@ void addRawSamples(ScenarioData &scenario, const std::string &filename) {
       auto it = phase.measurements.find(config);
       if (it != phase.measurements.end() and it->second.iteration == iteration) {
         auto &samples = it->second.rawSamples;
+        auto &rebuildSamples = it->second.rebuildSamples;
         for (size_t i = 0; i < numSamples; i++) {
-          long sample = std::stol(row.at(firstSampleCol + i));
-          if (sample < 0) continue;
-          samples.push_back(sample);
+          long sample = std::stol(row.at(firstIterationSampleCol + i));
+          long rebuild = std::stol(row.at(firstRebuildSampleCol + i));
+          if (sample >= 0) samples.push_back(sample);
+          if (rebuild >= 0) rebuildSamples.push_back(rebuild);
         }
+        it->second.rebuildFrequency = std::stod(row.at(rebuildFreqCol));
         break;
       }
     }

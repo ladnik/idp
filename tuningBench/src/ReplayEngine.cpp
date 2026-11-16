@@ -24,8 +24,11 @@ long sampleValue(const SampleSet &samples, const ReplayOptions &options, std::mt
     drawnSamples.push_back(samples.rawSamples[distrPick(rng)]);
   }
 
+  long rebuild = static_cast<long>(*std::min_element(samples.rebuildSamples.begin(), samples.rebuildSamples.end()) /
+                                   samples.rebuildFrequency);
+
   // AutoPas default is minimum
-  return *std::min_element(drawnSamples.begin(), drawnSamples.end());
+  return *std::min_element(drawnSamples.begin(), drawnSamples.end()) + rebuild;
 }
 }  // namespace
 

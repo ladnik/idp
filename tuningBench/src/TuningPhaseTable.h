@@ -18,6 +18,8 @@ namespace autopas {
 struct SampleSet {
   long reduced;
   std::vector<long> rawSamples;
+  std::vector<long> rebuildSamples;
+  double rebuildFrequency;
   size_t iteration;
 };
 
