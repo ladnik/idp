@@ -33,7 +33,8 @@ long sampleValue(const SampleSet &samples, const ReplayOptions &options, std::mt
 }  // namespace
 
 PhaseResult replayPhase(TuningStrategyInterface &strategy, const TuningPhaseTable &phase,
-                        const std::set<Configuration> &searchSpace, const ReplayOptions &options, std::mt19937 &rng) {
+                        const std::set<Configuration> &searchSpace, EvidenceCollection &evidenceCollection,
+                        const ReplayOptions &options, std::mt19937 &rng, unsigned long startIteration) {
   PhaseResult phaseResult{
       .phaseIndex = phase.phaseIndex, .evaluations = 0, .tuningIterations = 0, .searchSpaceSize = searchSpace.size()};
 
@@ -42,13 +43,11 @@ PhaseResult replayPhase(TuningStrategyInterface &strategy, const TuningPhaseTabl
   configQueue.reserve(searchSpace.size());
   std::copy(searchSpace.rbegin(), searchSpace.rend(), std::back_inserter(configQueue));
 
-  EvidenceCollection evidenceCollection;
-
   if (strategy.needsLiveInfo() && phase.liveInfo.has_value()) {
     strategy.receiveLiveInfo(phase.liveInfo.value());
   }
 
-  size_t iteration = 0;
+  size_t iteration = startIteration;
   long bestValueSoFar = std::numeric_limits<long>::max();
   auto before = std::chrono::steady_clock::now();
   strategy.reset(iteration, phase.phaseIndex, configQueue, evidenceCollection);
@@ -117,6 +116,7 @@ std::vector<PhaseResult> replayScenario(const StrategyFactory &makeStrategy, con
   if (options.persistAcrossPhases) strategy = makeStrategy(scenario.searchSpace, seed);
 
   std::vector<PhaseResult> results;
+  EvidenceCollection evidenceCollection;
 
   for (auto &phase : scenario.phases) {
     if (!options.persistAcrossPhases) strategy = makeStrategy(scenario.searchSpace, seed + phase.phaseIndex);
@@ -124,7 +124,8 @@ std::vector<PhaseResult> replayScenario(const StrategyFactory &makeStrategy, con
     if (!strategy) throw std::runtime_error("Could not construct tuning strategy.");
 
     std::mt19937 rng(seed + phase.phaseIndex);
-    PhaseResult result = replayPhase(*strategy, phase, scenario.searchSpace, options, rng);
+    PhaseResult result = replayPhase(*strategy, phase, scenario.searchSpace, evidenceCollection, options, rng,
+                                     phase.phaseIndex * options.tuningInterval);
 
     // iterations remaining (computed with newly selected config)
     long iterationsRemaining =

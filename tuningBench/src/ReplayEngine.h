@@ -10,7 +10,8 @@
 namespace autopas {
 
 PhaseResult replayPhase(TuningStrategyInterface &strategy, const TuningPhaseTable &phase,
-                        const std::set<Configuration> &searchSpace, const ReplayOptions &options, std::mt19937 &rng);
+                        const std::set<Configuration> &searchSpace, EvidenceCollection &evidenceCollection,
+                        const ReplayOptions &options, std::mt19937 &rng, unsigned long startIteration);
 
 using StrategyFactory = std::function<std::unique_ptr<TuningStrategyInterface>(
     const std::set<Configuration> &searchSpace, unsigned long seed)>;
