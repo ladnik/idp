@@ -1,7 +1,7 @@
 [project]
 name = "tools"
 version = "0.1.0"
-description = "Add your description here"
+description = "Toolchain for running replays on AutoPas measurement data to evaluate tuning strategies."
 readme = "README.md"
 authors = [
     { name = "ladnik", email = "niklasladurner03@gmail.com" }
@@ -14,6 +14,7 @@ dependencies = [
     "pandas>=3.1.1",
     "python-dotenv>=1.2.4",
     "pyyaml>=6.0.3",
+    "ruff>=0.17.5",
 ]
 
 [project.scripts]
@@ -22,3 +23,10 @@ tools = "tools.scripts.generate_job:main"
 [build-system]
 requires = ["uv_build>=0.13.8,<0.14.0"]
 build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = ["E501"]

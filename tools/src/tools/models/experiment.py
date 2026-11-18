@@ -1,8 +1,10 @@
-from pathlib import Path
-from jinja2 import Template
-from enum import StrEnum
-from tools.models.config import config
 from dataclasses import dataclass, field
+from enum import StrEnum
+from pathlib import Path
+
+from jinja2 import Template
+
+from tools.models.config import config
 
 
 class Scenario(StrEnum):
@@ -21,7 +23,7 @@ class Experiment:
     tuning_interval: int
     tuning_samples: int
 
-    rendered_experiment_file: Path = field(default=None, init=False)
+    rendered_experiment_file: Path | None = field(default=None, init=False)
 
     def render_experiment_file(self) -> None:
         template_dir = config.experiments_dir / str(self.scenario)
@@ -49,7 +51,7 @@ class Experiment:
         return self.scenario
 
     def get_experiment_file(self):
-        if self.rendered_experiment_file == None:
+        if self.rendered_experiment_file is None:
             self.render_experiment_file()
         return self.rendered_experiment_file
 

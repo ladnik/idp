@@ -1,10 +1,5 @@
-import sys
-from pathlib import Path
-
 import matplotlib as mpl
-import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
-import pandas as pd
 
 mpl.use("Agg")
 mpl.rcParams.update(
@@ -78,7 +73,7 @@ def band_plot(
         )
 
     style_plot(ax, title, ylabel, xlabel)
-    
+
     budgets = sorted(data["budget"].unique())
     ax.set_xticks(budgets)
     ax.set_xticklabels([str(b) for b in budgets])

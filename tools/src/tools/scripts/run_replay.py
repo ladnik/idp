@@ -1,13 +1,13 @@
-from tools.models.config import config
-from enum import StrEnum
 import subprocess
-from pathlib import Path
-from tools.models.experiment import Scenario, tuning_interval_per_scenario
 import sys
+from enum import StrEnum
+from pathlib import Path
+
+import pandas as pd
 import yaml
 
-import numpy as np
-import pandas as pd
+from tools.models.config import config
+from tools.models.experiment import Scenario
 from tools.models.plot import band_plot
 
 
@@ -44,8 +44,8 @@ def generate_replay_data(
 ) -> None:
     """Generates replay data from full-search runs using the tuningBench application. Resulting files will be stored in 'analysis_path/<scenario>'."""
 
-    tuning_data_file = next(measurements_path.glob(f"*tuningData*.csv"))
-    tuning_log_file = next(measurements_path.glob(f"*tuningLog*.txt"))
+    tuning_data_file = next(measurements_path.glob("*tuningData*.csv"))
+    tuning_log_file = next(measurements_path.glob("*tuningLog*.txt"))
 
     for tuning_strategy in TuningStrategy:
         for budget in budgets:
@@ -82,6 +82,7 @@ def generate_replay_data(
             with logfile.open("w") as log:
                 subprocess.run(replay_cmd, check=True, stdout=log)
 
+
 def load_replay_data(results_path: Path) -> pd.DataFrame:
     frames = []
     for path in sorted(results_path.glob("*_b*.csv")):
@@ -97,7 +98,7 @@ def dynamic_oracle_cost(tuning_phases: pd.DataFrame, tuning_interval: int) -> fl
 
 
 def static_oracle_cost(analysis_path: Path) -> float:
-    logfile = next(analysis_path.glob(f"*_b*.log"))
+    logfile = next(analysis_path.glob("*_b*.log"))
     for line in logfile.read_text().splitlines():
         if line.strip().startswith("static oracle:"):
             return float(line.split()[2])
@@ -143,35 +144,44 @@ def main() -> None:
     print("Loading scenario settings...")
     settings = load_scenario_yaml(measurements)
 
-    tuning_interval = settings["tuning-interval"]
-    tuning_samples = settings["tuning-samples"]
-    iterations = settings["iterations"]
+    tuning_interval = int(settings["tuning-interval"])
+    tuning_samples = int(settings["tuning-samples"])
+    # iterations = int(settings["iterations"])
 
     scenario = SCENARIO_SUFFIXES.get(settings["output-suffix"])
     if scenario is None:
         print("Could not determine scenario.")
         sys.exit(1)
 
-    replay = False if input("Generate replay data? [Y/n] ").lower() == "n" else True
-    if(replay):
+    replay = input("Generate replay data? [Y/n] ").lower() != "n"
+    if replay:
         print(f"Generating replay data for scenario {scenario}...")
         generate_replay_data(measurements, results, tuning_interval, tuning_samples)
 
     print("Loading and aggregating data...")
     tuning_phases_frame = load_replay_data(results)
-    num_tuning_phases = tuning_phases_frame["phaseIndex"].nunique()
+    # num_tuning_phases = tuning_phases_frame["phaseIndex"].nunique()
 
     dynamic_oracle = dynamic_oracle_cost(tuning_phases_frame, tuning_interval)
-    static_oracle = static_oracle_cost(results)
+    # static_oracle = static_oracle_cost(results)
     aggregated_data = aggregate_phases(tuning_phases_frame, dynamic_oracle)
     aggregated_data.to_csv(out / "summary.csv", index=False, float_format="%.4f")
-    
-    plot = False if input("Generate plots? [Y/n] ").lower() == "n" else True
-    if(plot):
+
+    plot = input("Generate plots? [Y/n] ").lower() != "n"
+    if plot:
         print("Plotting results...")
-        band_plot(aggregated_data, "meanSelectionRatio", "Exploding Liquid", "Mean Selection Ratio", "Budget", figures / "mean_sel.png", 1)
-    
+        band_plot(
+            aggregated_data,
+            "meanSelectionRatio",
+            "Exploding Liquid",
+            "Mean Selection Ratio",
+            "Budget",
+            figures / "mean_sel.png",
+            1,
+        )
+
     print("Done!")
+
 
 if __name__ == "__main__":
     main()
