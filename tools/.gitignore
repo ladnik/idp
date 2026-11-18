@@ -1,0 +1,4 @@
+__pycache__/*
+.env
+.venv/
+regen_plots.sh
