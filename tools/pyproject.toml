@@ -15,7 +15,8 @@ dependencies = [
 ]
 
 [project.scripts]
-tools = "tools.scripts.generate_job:main"
+generate = "tools.scripts.generate_job:main"
+replay = "tools.scripts.run_replay:main"
 
 [build-system]
 requires = ["uv_build>=0.13.8,<0.14.0"]

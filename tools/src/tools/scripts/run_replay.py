@@ -8,7 +8,7 @@ import yaml
 
 from tools.models.config import config
 from tools.models.experiment import Scenario
-from tools.models.plot import band_plot
+from tools.models.plot import band_plot, line_plot
 
 
 class TuningStrategy(StrEnum):
@@ -93,7 +93,7 @@ def load_replay_data(results_path: Path) -> pd.DataFrame:
 
 
 def dynamic_oracle_cost(tuning_phases: pd.DataFrame, tuning_interval: int) -> float:
-    optimal_sum = tuning_phases["optimalValue"].sum()
+    optimal_sum = tuning_phases.drop_duplicates("phaseIndex")["optimalValue"].sum()
     return float(tuning_interval * optimal_sum)
 
 
@@ -106,7 +106,7 @@ def static_oracle_cost(analysis_path: Path) -> float:
 
 
 def aggregate_phases(
-    tuning_phases: pd.DataFrame, dynamic_oracle: float
+    tuning_phases: pd.DataFrame, dynamic_oracle: float, static_oracle: float
 ) -> pd.DataFrame:
     """Aggregates the data in the dataframe s.t. only one row per unique (strategy, budget, seed) remains."""
     # mean = avg
@@ -123,6 +123,7 @@ def aggregate_phases(
         ),  # how many of the chosen configurations were the optimum in that phase
     )
     unique["costVsDynOracle"] = unique["totalCost"] / dynamic_oracle
+    unique["costVsStatOracle"] = unique["totalCost"] / static_oracle
     return unique.reset_index()
 
 
@@ -153,32 +154,80 @@ def main() -> None:
         print("Could not determine scenario.")
         sys.exit(1)
 
-    replay = input("Generate replay data? [Y/n] ").lower() != "n"
+    replay = input("Generate replay data? [y/N] ").lower() == "y"
     if replay:
         print(f"Generating replay data for scenario {scenario}...")
         generate_replay_data(measurements, results, tuning_interval, tuning_samples)
+        print(f"Wrote replay data to '{results}'.")
 
     print("Loading and aggregating data...")
     tuning_phases_frame = load_replay_data(results)
     # num_tuning_phases = tuning_phases_frame["phaseIndex"].nunique()
 
     dynamic_oracle = dynamic_oracle_cost(tuning_phases_frame, tuning_interval)
-    # static_oracle = static_oracle_cost(results)
-    aggregated_data = aggregate_phases(tuning_phases_frame, dynamic_oracle)
+    static_oracle = static_oracle_cost(results)
+    aggregated_data = aggregate_phases(
+        tuning_phases_frame, dynamic_oracle, static_oracle
+    )
     aggregated_data.to_csv(out / "summary.csv", index=False, float_format="%.4f")
 
-    plot = input("Generate plots? [Y/n] ").lower() != "n"
+    plot = input("Generate plots? [y/N] ").lower() == "y"
     if plot:
         print("Plotting results...")
+
+        # Mean Selection Ratio vs Budget
         band_plot(
             aggregated_data,
             "meanSelectionRatio",
-            "Exploding Liquid",
+            "budget",
+            scenario,
             "Mean Selection Ratio",
             "Budget",
-            figures / "mean_sel.png",
+            figures / "mean-selection-ratio.png",
             1,
         )
+
+        # Total Cost vs Dynamic Oracle Cost
+        line_plot(
+            aggregated_data,
+            "costVsDynOracle",
+            "budget",
+            scenario,
+            "Total Cost / Dynamic Oracle",
+            "Budget",
+            figures / "cost-vs-dyn-oracle.png",
+            1,
+        )
+
+        # Total Cost vs Static Oracle Cost
+        line_plot(
+            aggregated_data,
+            "costVsStatOracle",
+            "budget",
+            scenario,
+            "Total Cost / Static Oracle",
+            "Budget",
+            figures / "cost-vs-stat-oracle.png",
+            1,
+        )
+
+        # Chosen Value vs Tuning Phase @ Budget
+        budget = 50
+        line_plot(
+            tuning_phases_frame[tuning_phases_frame.budget == budget],
+            "chosenValueRecorded",
+            "phaseIndex",
+            scenario,
+            f"Chosen Value @ Budget {budget}",
+            "Tuning Phase",
+            figures / f"chosen-vs-phase-b{budget}.png",
+            lambda data: data.drop_duplicates("phaseIndex").set_index("phaseIndex")[
+                "optimalValue"
+            ],
+            reference_label="Optimum",
+        )
+
+        print(f"Wrote plots to '{figures}'.")
 
     print("Done!")
 
