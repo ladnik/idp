@@ -1,20 +1,20 @@
 #!/bin/bash
 
-module load gcc
-module load intel-toolkit
+module load gcc/16.2.0
+module load cmake
 
 export CXX=$(which g++)
-export CC=$(which gcc).
+export CC=$(which gcc)
+export CMAKE=$(which cmake)
 
-
-AUTOPAS_PATH=/dss/dsshome1/09/ge92hed2/AutoPas
+AUTOPAS_PATH=/dss/dsshome1/0B/ge92hed3/AutoPas
 
 echo "Building ${AUTOPAS_PATH}"
 
 mkdir -p ${AUTOPAS_PATH}/build
 cd ${AUTOPAS_PATH}/build
 
-cmake -DMD_FLEXIBLE_USE_MPI=OFF \
+$CMAKE -DMD_FLEXIBLE_USE_MPI=OFF \
     -DCMAKE_C_COMPILER=$CC \
     -DCMAKE_CXX_COMPILER=$CXX \
     -DAUTOPAS_ENABLE_ENERGY_MEASUREMENTS=OFF \
@@ -27,4 +27,4 @@ cmake -DMD_FLEXIBLE_USE_MPI=OFF \
     -DAUTOPAS_LOG_TUNINGRESULTS=ON \
     -DMD_FLEXIBLE_FUNCTOR_AVX=ON \
     ${AUTOPAS_PATH}/
-cmake --build ${AUTOPAS_PATH}/build --target md-flexible --parallel 12
+$CMAKE --build ${AUTOPAS_PATH}/build --target md-flexible --parallel 12
