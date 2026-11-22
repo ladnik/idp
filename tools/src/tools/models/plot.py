@@ -2,7 +2,9 @@ from collections.abc import Callable
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+from matplotlib.colors import TwoSlopeNorm
 from matplotlib.ticker import MaxNLocator
 
 ReferenceType = float | Callable[[pd.DataFrame], float | pd.Series] | None
@@ -182,3 +184,104 @@ def band_plot(
     style(ax, title, ylabel, xlabel)
     xticks(ax, data, column_x, xlog)
     layout(ax, fig, outfile)
+
+
+def heatmap_plot(
+    data, column_z, column_y, column_x, title, zlabel, ylabel, xlabel, outfile
+) -> None:
+    """Generates a heatmap plot of the given columns."""
+
+    # Generate the corresponding heatmaps for each strategy, column_z is the value
+    # TODO better layout
+    arrays = {
+        strategy: data[data.tuningStrategy == strategy].pivot_table(
+            index=column_y, columns=column_x, values=column_z, aggfunc="median"
+        )
+        for strategy in STRATEGY_LABELS
+    }
+
+    rs_arr = arrays["random-Search"]
+    sa_arr = arrays["simulated-annealing"]
+    diffs_arr = sa_arr - rs_arr
+
+    fig, axes = plt.subplots(1, 3, sharey=True, figsize=(12, 5))
+
+    minvalue = min(arr.min().min() for arr in arrays.values())
+    maxvalue = max(arr.max().max() for arr in arrays.values())
+
+    for ax, (strategy, arr) in zip(axes, arrays.items(), strict=False):
+        im = ax.imshow(
+            arr.to_numpy(), aspect="auto", origin="lower", vmin=minvalue, vmax=maxvalue
+        )
+        style(ax, STRATEGY_LABELS[strategy], ylabel, xlabel)
+    fig.colorbar(im, ax=ax, label=zlabel)
+
+    for ax in axes:
+        ax.set_xticks(range(len(rs_arr.columns)), [str(b) for b in rs_arr.columns])
+        ax.yaxis.set_major_locator(MaxNLocator(nbins=10, integer=True))
+        ax.spines[["left", "bottom"]].set_visible(False)
+
+    max_abs_diff = np.max(np.abs(diffs_arr.to_numpy()))
+
+    im = axes[2].imshow(
+        diffs_arr.to_numpy(),
+        aspect="auto",
+        origin="lower",
+        cmap="RdBu",
+        norm=TwoSlopeNorm(vcenter=0, vmin=-max_abs_diff, vmax=max_abs_diff),
+    )
+    fig.colorbar(im, ax=axes[2], label="SA - RS")
+    style(axes[2], "Difference", ylabel, xlabel)
+
+    fig.suptitle(title, color=STYLING_COLORS["label"])
+    fig.tight_layout()
+    fig.savefig(outfile, dpi=300)
+    plt.close(fig)
+
+
+def stacked_bar_plot(
+    data, buckets, bucketlabels, column_y, column_x, title, ylabel, xlabel, outfile
+) -> None:
+    """Generates a stacked bar plot of the given columns."""
+
+    fig, axes = plt.subplots(1, 2, sharey=True, figsize=(12, 5))
+
+    for ax, (strategy, strategylabel) in zip(
+        axes, STRATEGY_LABELS.items(), strict=False
+    ):
+        filtered = data[data.tuningStrategy == strategy]
+        bins = pd.cut(filtered[column_y], buckets, labels=bucketlabels)
+        shares = pd.crosstab(filtered[column_x], bins, normalize="index").reindex(
+            columns=bucketlabels, fill_value=0
+        )
+
+        positions = [i for i in range(len(shares.index))]
+        bottom = np.zeros(len(positions))
+
+        for bucketlabel, color in zip(
+            bucketlabels, mpl.color_sequences["tab10"], strict=False
+        ):
+            ax.bar(
+                positions,
+                shares[bucketlabel],
+                width=0.5,
+                bottom=bottom,
+                color=color,
+                label=bucketlabel,
+            )
+            bottom += shares[bucketlabel].to_numpy()
+
+        ax.set_xticks(positions, [str(b) for b in shares.index])
+        style(ax, strategylabel, ylabel, xlabel)
+
+    axes[-1].legend(
+        frameon=False,
+        labelcolor=STYLING_COLORS["label"],
+        loc="upper left",
+        bbox_to_anchor=(1, 1),
+    )
+
+    fig.suptitle(title, color=STYLING_COLORS["label"])
+    fig.tight_layout()
+    fig.savefig(outfile, dpi=300)
+    plt.close(fig)

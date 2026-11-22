@@ -3,12 +3,13 @@ import sys
 from enum import StrEnum
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import yaml
 
 from tools.models.config import config
 from tools.models.experiment import Scenario
-from tools.models.plot import band_plot, line_plot
+from tools.models.plot import band_plot, heatmap_plot, line_plot, stacked_bar_plot
 
 
 class TuningStrategy(StrEnum):
@@ -225,6 +226,32 @@ def main() -> None:
                 "optimalValue"
             ],
             reference_label="Optimum",
+        )
+
+        # Three Heatmaps for Tunig Phase vs. Budget with Value Selection Ratio
+        heatmap_plot(
+            tuning_phases_frame,
+            "selectionRatio",
+            "phaseIndex",
+            "budget",
+            scenario,
+            "Selection Ratio",
+            "Tuning Phase",
+            "Budget",
+            figures / "selection-ratio-heatmap.png",
+        )
+
+        # Two Stacked Bar Plots for Rank of Chosen Config
+        stacked_bar_plot(
+            tuning_phases_frame,
+            [-0.5, 0.5, 2.5, 9.5, np.inf],
+            ["Optimum", "Rank 1–2", "Rank 3–9", "Other"],
+            "rankOfChosen",
+            "budget",
+            scenario,
+            "Rank of chosen Config",
+            "Budget",
+            figures / "rank-of-chosen-stacked.png",
         )
 
         print(f"Wrote plots to '{figures}'.")
