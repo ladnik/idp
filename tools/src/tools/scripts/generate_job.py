@@ -39,7 +39,7 @@ def main():
     mail = sys.argv[1]
     generate_slurm_file(mail, experiments)
 
-    print("SLURM job file successfuly generated. Please run `sbatch <jobfile>`.")
+    print("SLURM job file successfully generated. Please run `sbatch <jobfile>`.")
 
 
 if __name__ == "__main__":

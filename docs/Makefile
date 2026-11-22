@@ -5,7 +5,7 @@ TEXS := $(wildcard *.tex)
 # compile a specific .tex file to PDF and clean auxiliary files
 %.pdf: %.tex
 	latexmk -pdf -halt-on-error -interaction=nonstopmode -synctex=1 $<
-	
+
 # compile all .tex files
 all: $(TEXS:.tex=.pdf)
 
