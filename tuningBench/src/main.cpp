@@ -13,17 +13,21 @@ namespace {
 
 void usage() {
   std::cerr << "Usage: tuningBench [options] <tuningLog.txt> [tuningLog.txt ...]\n"
-            << "  --dump                      print parsed tuning phases and exit\n"
-            << "  --strategy <name>           tuning strategy to replay (default: random-search)\n"
-            << "  --seed <val>                seed for stochastic strategies (default: 1234)\n"
-            << "  --tuning-interval <val>     iterations between tuning phases (default: 100)\n"
-            << "  --tuning-samples <val>      samples per configuration (default: 3)\n"
-            << "  --max-evidence <val>        max budget for tuning strategies (default: size of search space)\n"
-            << "  --seeds <val>               number of seeds to replay per scenario (default: 1)\n"
-            << "  --out <file>                write metrics to csv file (default: no output)\n"
-            << "  --noise <mode>              reduced or resampled (default: reduced)\n"
-            << "  --tuning-data <file>        tuningData csv with raw samples, required for resampling\n"
-            << "  --drop-first-samples <val>  leading samples to ignore when resampling (default: 0)\n";
+            << "  --dump                          print parsed tuning phases and exit\n"
+            << "  --strategy <name>               tuning strategy to replay (default: random-search)\n"
+            << "  --seed <val>                    seed for stochastic strategies (default: 1234)\n"
+            << "  --tuning-interval <val>         iterations between tuning phases (default: 100)\n"
+            << "  --tuning-samples <val>          samples per configuration (default: 3)\n"
+            << "  --max-evidence <val>            max budget for tuning strategies (default: size of search space)\n"
+            << "  --seeds <val>                   number of seeds to replay per scenario (default: 1)\n"
+            << "  --out <file>                    write metrics to csv file (default: no output)\n"
+            << "  --noise <mode>                  reduced or resampled (default: reduced)\n"
+            << "  --tuning-data <file>            tuningData csv with raw samples, required for resampling\n"
+            << "  --drop-first-samples <val>      leading samples to ignore when resampling (default: 0)\n"
+            << "  --sa-initial-temperature <val>  simulated annealing: initial temperature (default: 0.2)\n"
+            << "  --sa-end-temperature <val>      simulated annealing: end temperature (default: 0.01)\n"
+            << "  --sa-exclusion-factor <val>     simulated annealing: exclusion factor (default: 3.0)\n"
+            << "  --sa-level-variance <val>       simulated annealing: level change variance (default: 0.75)\n";
   std::exit(1);
 }
 
@@ -85,6 +89,12 @@ int main(int argc, char **argv) {
   std::string tuningDataFilename;
   autopas::ReplayOptions options{};
 
+  // SA-specific parameters to pass on
+  double initialTemperature = 0.2;
+  double endTemperature = 0.01;
+  double exclusionFactor = 3.0;
+  double levelChangeVariance = 0.75;
+
   for (int i = 1; i < argc; ++i) {
     const std::string arg{argv[i]};
     if (arg == "--dump") {
@@ -117,6 +127,14 @@ int main(int argc, char **argv) {
       tuningDataFilename = nextArg(argc, argv, i);
     } else if (arg == "--drop-first-samples") {
       options.dropFirstSamples = std::stoul(nextArg(argc, argv, i));
+    } else if (arg == "--sa-initial-temperature") {
+      initialTemperature = std::stod(nextArg(argc, argv, i));
+    } else if (arg == "--sa-end-temperature") {
+      endTemperature = std::stod(nextArg(argc, argv, i));
+    } else if (arg == "--sa-exclusion-factor") {
+      exclusionFactor = std::stod(nextArg(argc, argv, i));
+    } else if (arg == "--sa-level-variance") {
+      levelChangeVariance = std::stod(nextArg(argc, argv, i));
     } else if (arg.rfind("--", 0) == 0) {
       std::cerr << "Unknown option: " << arg << '\n';
       usage();
@@ -164,9 +182,14 @@ int main(int argc, char **argv) {
       size_t budget = maxEvidence > 0 ? maxEvidence : fullSearchBudget;
 
       autopas::StrategyFactory makeStrategy =
-          [chosenStrategy, budget](const std::set<autopas::Configuration> &searchSpace, unsigned long phaseSeed) {
+          [chosenStrategy, budget, initialTemperature, endTemperature, exclusionFactor, levelChangeVariance](
+              const std::set<autopas::Configuration> &searchSpace, unsigned long phaseSeed) {
             autopas::TuningStrategyFactoryInfo info{.maxEvidence = static_cast<unsigned int>(budget),
                                                     .tuningStrategySeed = phaseSeed};
+            info.initialTemperature = initialTemperature;
+            info.endTemperature = endTemperature;
+            info.exclusionFactor = exclusionFactor;
+            info.levelChangeVariance = levelChangeVariance;
             return autopas::TuningStrategyFactory::generateTuningStrategy(searchSpace, chosenStrategy, info,
                                                                           autopas::InteractionTypeOption::pairwise);
           };
