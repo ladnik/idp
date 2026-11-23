@@ -114,7 +114,7 @@ void writeCsvHeader(std::ostream &out) {
 }
 
 void writeCsvRow(std::ostream &out, const PhaseMetrics &metrics) {
-  out << '"' << metrics.scenario << '"' << ',' << metrics.tuningStrategy << ',' << metrics.seed << ','
+  out << '"' << metrics.scenario << '"' << ',' << '"' << metrics.tuningStrategy << '"' << ',' << metrics.seed << ','
       << metrics.phaseIndex << ',' << metrics.evaluations << ',' << metrics.tuningIterations << ','
       << metrics.searchSpaceSize << ',' << metrics.chosenValueObserved << ',' << metrics.chosenValueRecorded << ','
       << metrics.optimalValue << ',' << std::fixed << std::setprecision(6) << metrics.selectionRatio << ','

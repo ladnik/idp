@@ -32,7 +32,7 @@ long sampleValue(const SampleSet &samples, const ReplayOptions &options, std::mt
 }
 }  // namespace
 
-PhaseResult replayPhase(TuningStrategyInterface &strategy, const TuningPhaseTable &phase,
+PhaseResult replayPhase(Strategies &strategies, const TuningPhaseTable &phase,
                         const std::set<Configuration> &searchSpace, EvidenceCollection &evidenceCollection,
                         const ReplayOptions &options, std::mt19937 &rng, unsigned long startIteration) {
   PhaseResult phaseResult{
@@ -43,20 +43,38 @@ PhaseResult replayPhase(TuningStrategyInterface &strategy, const TuningPhaseTabl
   configQueue.reserve(searchSpace.size());
   std::copy(searchSpace.rbegin(), searchSpace.rend(), std::back_inserter(configQueue));
 
-  if (strategy.needsLiveInfo() && phase.liveInfo.has_value()) {
-    strategy.receiveLiveInfo(phase.liveInfo.value());
+  for (const auto &strategy : strategies) {
+    if (strategy->needsLiveInfo() && phase.liveInfo.has_value()) {
+      strategy->receiveLiveInfo(phase.liveInfo.value());
+    }
   }
 
   size_t iteration = startIteration;
   long bestValueSoFar = std::numeric_limits<long>::max();
   auto before = std::chrono::steady_clock::now();
-  strategy.reset(iteration, phase.phaseIndex, configQueue, evidenceCollection);
+  for (const auto &strategy : strategies) {
+    const auto backupQueue = configQueue;
+    if (!strategy->reset(iteration, phase.phaseIndex, configQueue, evidenceCollection) && configQueue.empty()) {
+      configQueue = backupQueue;
+    }
+  }
   phaseResult.tuningOverheadNanoSeconds =
       std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - before).count();
 
+  bool firstConfig = true;
   while (!configQueue.empty()) {
     before = std::chrono::steady_clock::now();
-    strategy.optimizeSuggestions(configQueue, evidenceCollection);
+    if (!firstConfig) {
+      // AutoTuner does not call optimizeSuggestions directly after reset
+      for (const auto &strategy : strategies) {
+        const auto backupQueue = configQueue;
+        if (!strategy->optimizeSuggestions(configQueue, evidenceCollection) && configQueue.empty()) {
+          configQueue = backupQueue;
+        }
+      }
+    }
+    firstConfig = false;
+
     phaseResult.tuningOverheadNanoSeconds +=
         std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - before).count();
 
@@ -80,7 +98,9 @@ PhaseResult replayPhase(TuningStrategyInterface &strategy, const TuningPhaseTabl
       evidenceCollection.addEvidence(configToTest, evidence);
 
       before = std::chrono::steady_clock::now();
-      strategy.addEvidence(configToTest, evidence);
+      for (const auto &strategy : strategies) {
+        strategy->addEvidence(configToTest, evidence);
+      }
       phaseResult.tuningOverheadNanoSeconds +=
           std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - before).count();
 
@@ -110,21 +130,21 @@ PhaseResult replayPhase(TuningStrategyInterface &strategy, const TuningPhaseTabl
   return phaseResult;
 }
 
-std::vector<PhaseResult> replayScenario(const StrategyFactory &makeStrategy, const ScenarioData &scenario,
+std::vector<PhaseResult> replayScenario(const StrategyFactory &makeStrategies, const ScenarioData &scenario,
                                         const ReplayOptions &options, unsigned long seed) {
-  std::unique_ptr<TuningStrategyInterface> strategy;
-  if (options.persistAcrossPhases) strategy = makeStrategy(scenario.searchSpace, seed);
+  Strategies strategies;
+  if (options.persistAcrossPhases) strategies = makeStrategies(scenario.searchSpace, seed);
 
   std::vector<PhaseResult> results;
   EvidenceCollection evidenceCollection;
 
   for (auto &phase : scenario.phases) {
-    if (!options.persistAcrossPhases) strategy = makeStrategy(scenario.searchSpace, seed + phase.phaseIndex);
+    if (!options.persistAcrossPhases) strategies = makeStrategies(scenario.searchSpace, seed + phase.phaseIndex);
 
-    if (!strategy) throw std::runtime_error("Could not construct tuning strategy.");
+    if (strategies.empty()) throw std::runtime_error("Could not construct tuning strategies.");
 
     std::mt19937 rng(seed + phase.phaseIndex);
-    PhaseResult result = replayPhase(*strategy, phase, scenario.searchSpace, evidenceCollection, options, rng,
+    PhaseResult result = replayPhase(strategies, phase, scenario.searchSpace, evidenceCollection, options, rng,
                                      phase.phaseIndex * options.tuningInterval);
 
     // iterations remaining (computed with newly selected config)

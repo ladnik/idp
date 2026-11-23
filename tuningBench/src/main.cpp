@@ -15,7 +15,7 @@ void usage() {
   std::cerr
       << "Usage: tuningBench [options] <tuningLog.txt> [tuningLog.txt ...]\n"
       << "  --dump                          print parsed tuning phases and exit\n"
-      << "  --strategy <name>               tuning strategy to replay (default: random-search)\n"
+      << "  --strategy <name,...>           tuning strategy to replay (default: random-search)\n"
       << "  --seed <val>                    seed for stochastic strategies (default: 1234)\n"
       << "  --tuning-interval <val>         iterations between tuning phases (default: 100)\n"
       << "  --tuning-samples <val>          samples per configuration (default: 3)\n"
@@ -31,7 +31,8 @@ void usage() {
       << "  --sa-level-variance <val>       simulated annealing: level change variance (default: 0.75)\n"
       << "  --pt-max-phases-wo-test <val>   predictive tuning: max phases without test (default: 5)\n"
       << "  --pt-relative-opt-range <val>   predictive tuning: relative optimum range (default: 1.2)\n"
-      << "  --pt-extrapolation <val>        predictive tuning: extrapolation method (default: \"linear-regression\")\n";
+      << "  --pt-extrapolation <val>        predictive tuning: extrapolation method (default: \"linear-regression\")\n"
+      << "  --rbt-rule-file <path>          rule based tuning: tuning file (default: \"tuningRules.rule\")\n";
   std::exit(1);
 }
 
@@ -104,6 +105,9 @@ int main(int argc, char **argv) {
   double relativeOptimumRange = 1.2;
   std::string extrapolationMethod{"linear-regression"};
 
+  // Rule-Based Tuning specific parameters to pass on
+  std::string ruleFileName{"tuningRules.rule"};
+
   for (int i = 1; i < argc; ++i) {
     const std::string arg{argv[i]};
     if (arg == "--dump") {
@@ -150,6 +154,8 @@ int main(int argc, char **argv) {
       relativeOptimumRange = std::stod(nextArg(argc, argv, i));
     } else if (arg == "--pt-extrapolation") {
       extrapolationMethod = nextArg(argc, argv, i);
+    } else if (arg == "--rbt-rule-file") {
+      ruleFileName = nextArg(argc, argv, i);
     } else if (arg.rfind("--", 0) == 0) {
       std::cerr << "Unknown option: " << arg << '\n';
       usage();
@@ -161,13 +167,12 @@ int main(int argc, char **argv) {
   if (files.empty()) usage();
 
   try {
-    auto parsedStrategies = autopas::TuningStrategyOption::parseOptions(strategyName);
-    if (parsedStrategies.size() != 1) {
+    auto chosenStrategies =
+        autopas::TuningStrategyOption::parseOptions<std::vector<autopas::TuningStrategyOption>>(strategyName);
+    if (chosenStrategies.empty()) {
       std::cerr << "Could not parse strategy '" << strategyName << "'.\n";
       return 1;
     }
-
-    auto chosenStrategy = *parsedStrategies.begin();
 
     std::ofstream csvFile;
     if (!csvFilename.empty()) {
@@ -196,11 +201,11 @@ int main(int argc, char **argv) {
       size_t fullSearchBudget = scenario.searchSpace.size();
       size_t budget = maxEvidence > 0 ? maxEvidence : fullSearchBudget;
 
-      autopas::StrategyFactory makeStrategy = [chosenStrategy, budget, initialTemperature, endTemperature,
-                                               exclusionFactor, levelChangeVariance, maxPhasesWithoutTest,
-                                               relativeOptimumRange,
-                                               extrapolationMethod](const std::set<autopas::Configuration> &searchSpace,
-                                                                    unsigned long phaseSeed) {
+      autopas::StrategyFactory makeStrategies = [chosenStrategies, budget, initialTemperature, endTemperature,
+                                                 exclusionFactor, levelChangeVariance, maxPhasesWithoutTest,
+                                                 relativeOptimumRange, extrapolationMethod,
+                                                 ruleFileName](const std::set<autopas::Configuration> &searchSpace,
+                                                               unsigned long phaseSeed) {
         autopas::TuningStrategyFactoryInfo info{.maxEvidence = static_cast<unsigned int>(budget),
                                                 .tuningStrategySeed = phaseSeed};
         info.initialTemperature = initialTemperature;
@@ -210,14 +215,20 @@ int main(int argc, char **argv) {
         info.maxTuningPhasesWithoutTest = maxPhasesWithoutTest;
         info.relativeOptimumRange = relativeOptimumRange;
         info.extrapolationMethodOption = *autopas::ExtrapolationMethodOption::parseOptions(extrapolationMethod).begin();
-        return autopas::TuningStrategyFactory::generateTuningStrategy(searchSpace, chosenStrategy, info,
-                                                                      autopas::InteractionTypeOption::pairwise);
+        info.ruleFileName = ruleFileName;
+
+        std::vector<std::unique_ptr<autopas::TuningStrategyInterface>> strategies;
+        for (const auto &strategy : chosenStrategies) {
+          strategies.push_back(autopas::TuningStrategyFactory::generateTuningStrategy(
+              searchSpace, strategy, info, autopas::InteractionTypeOption::pairwise));
+        }
+        return strategies;
       };
 
       // repeat replay for each seed
       for (size_t s = 0; s < numSeeds; ++s) {
         unsigned long currentSeed = seed + s;
-        auto results = autopas::replayScenario(makeStrategy, scenario, options, currentSeed);
+        auto results = autopas::replayScenario(makeStrategies, scenario, options, currentSeed);
         report(scenario, results, options, strategyName, currentSeed);
 
         if (csvFile.is_open()) {
