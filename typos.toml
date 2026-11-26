@@ -4,3 +4,4 @@ extend-exclude = ["**/.gitignore"]
 [default.extend-words]
 equil = "equil"
 MUC = "MUC"
+STRAT = "STRAT"

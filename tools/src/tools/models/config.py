@@ -28,6 +28,8 @@ class Config:
     analysis_dir: Path = Path(TOOLS / os.environ["ANALYSIS_DIR"]).resolve()
     # SLURM job template
     slurm_template: Path = Path(TOOLS / os.environ["SLURM_TEMPLATE"])
+    # Path to rule file for Rule Based Tuning
+    rule_file: Path = Path(TOOLS / os.environ["RULE_FILE"]).resolve()
 
 
 config = Config()
