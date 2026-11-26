@@ -4,7 +4,7 @@ import sys
 
 from tools.models.comparison import ALL_COMPARISONS
 from tools.models.config import config
-from tools.models.replay import ReplaySettings, replay_all
+from tools.models.replay import NoiseMode, ReplaySettings, replay_all
 
 
 def parse_cli_args():
@@ -47,10 +47,10 @@ def main():
 
     args = parse_cli_args()
 
-    settings = ReplaySettings()
+    settings = ReplaySettings(noise_mode=NoiseMode.REDUCED)
 
-    # comparisons_to_run = ALL_COMPARISONS
-    comparisons_to_run = []
+    comparisons_to_run = ALL_COMPARISONS
+    # comparisons_to_run = []
 
     for comparison_label in comparisons_to_run:
         comparison = ALL_COMPARISONS[comparison_label]

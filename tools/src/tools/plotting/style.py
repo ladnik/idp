@@ -62,8 +62,10 @@ class DataSeriesStyle:
 SERIES_STYLES = {
     VAR_SA_DEFAULT: DataSeriesStyle("red"),
     VAR_SA_DEFAULT_RBT: DataSeriesStyle("red", line_style="--", hatching="/"),
-    VAR_SA_HIGH_INITTEMP: DataSeriesStyle("salmon"),
-    VAR_SA_HIGH_INITTEMP_RBT: DataSeriesStyle("salmon", line_style="--", hatching="/"),
+    VAR_SA_HIGH_INITTEMP: DataSeriesStyle("royalblue"),
+    VAR_SA_HIGH_INITTEMP_RBT: DataSeriesStyle(
+        "royalblue", line_style="--", hatching="/"
+    ),
     VAR_RS: DataSeriesStyle("gold"),
     VAR_RS_RBT: DataSeriesStyle("gold", line_style="--", hatching="/"),
     VAR_FS: DataSeriesStyle("indigo"),
@@ -208,7 +210,7 @@ def line_plot(
             ax.axhline(
                 stat.iloc[0],
                 color=series_style.color,
-                ls=":" if series_style.line_style == "-" else "-.",
+                ls="-" if series_style.line_style == "-" else "-.",
                 lw=2,
                 label=label,
             )

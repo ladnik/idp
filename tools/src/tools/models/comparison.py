@@ -138,10 +138,14 @@ def construct_plots_dict(variants: list[Variant]) -> dict[str, PlotFn]:
         "mean-selection-ratio": partial(p_mean_selection_ratio, variants=variants),
         "cost-vs-dyn-oracle": partial(p_cost_vs_dyn_oracle, variants=variants),
         "cost-vs-stat-oracle": partial(p_cost_vs_stat_oracle, variants=variants),
+        "chosen-vs-phase-b10": partial(p_chosen_vs_phase, variants=variants, budget=10),
+        "chosen-vs-phase-b20": partial(p_chosen_vs_phase, variants=variants, budget=20),
+        "chosen-vs-phase-b30": partial(p_chosen_vs_phase, variants=variants, budget=30),
+        "chosen-vs-phase-b40": partial(p_chosen_vs_phase, variants=variants, budget=40),
         "chosen-vs-phase-b50": partial(p_chosen_vs_phase, variants=variants, budget=50),
-        "heatmap-selection-ratio": partial(
-            p_heatmap_selection_ratio, variants=variants
-        ),
+        # "heatmap-selection-ratio": partial(
+        #     p_heatmap_selection_ratio, variants=variants
+        # ),
         "rank-of-chosen": partial(p_rank_of_chosen, variants=variants),
     }
 
@@ -155,10 +159,36 @@ ALL_COMPARISONS = {
         ALL_STRATEGIES_RBT_PAIRS,
         construct_plots_dict(ALL_STRATEGIES_RBT_PAIRS),
     ),
-    "rs-sa-comparison": Comparison(
-        "rs-sa-comparison",
+    "sa-fs-comparison": Comparison(
+        "sa-fs-comparison",
         ALL_SCENARIOS,
-        [VAR_RS, VAR_SA_DEFAULT],
-        construct_plots_dict([VAR_RS, VAR_SA_DEFAULT]),
+        [VAR_SA_DEFAULT, VAR_FS],
+        construct_plots_dict([VAR_SA_DEFAULT, VAR_FS]),
+    ),
+    "sa-rs-comparison": Comparison(
+        "sa-rs-comparison",
+        ALL_SCENARIOS,
+        [VAR_SA_DEFAULT, VAR_RS],
+        construct_plots_dict([VAR_SA_DEFAULT, VAR_RS]),
+    ),
+    "sa-pt-comparison": Comparison(
+        "sa-pt-comparison",
+        ALL_SCENARIOS,
+        [VAR_SA_DEFAULT, VAR_PT_DEFAULT],
+        construct_plots_dict([VAR_SA_DEFAULT, VAR_PT_DEFAULT]),
+    ),
+    "sa-pt-rbt-comparison": Comparison(
+        "sa-pt-rbt-comparison",
+        ALL_SCENARIOS,
+        [VAR_SA_DEFAULT, VAR_SA_DEFAULT_RBT, VAR_PT_DEFAULT, VAR_PT_DEFAULT_RBT],
+        construct_plots_dict(
+            [VAR_SA_DEFAULT, VAR_SA_DEFAULT_RBT, VAR_PT_DEFAULT, VAR_PT_DEFAULT_RBT]
+        ),
+    ),
+    "sa-param-comparison": Comparison(
+        "sa-param-comparison",
+        ALL_SCENARIOS,
+        [VAR_SA_DEFAULT, VAR_SA_HIGH_INITTEMP],
+        construct_plots_dict([VAR_SA_DEFAULT, VAR_SA_HIGH_INITTEMP]),
     ),
 }
